@@ -89,6 +89,11 @@ confirmation before compiling."
   :type  'boolean
   :group 'vterm)
 
+(defcustom vterm-compile-module-use-nix nil
+  "If not nil, try to compile `vterm-module' with Nix."
+  :type  'boolean
+  :group 'vterm)
+
 (defvar vterm-install-buffer-name " *Install vterm* "
   "Name of the buffer used for compiling vterm-module.")
 
@@ -116,14 +121,21 @@ the executable."
              (file-name-directory (locate-library "vterm.el" t))))
            (make-commands
             (concat
-             "cd " vterm-directory "; \
-             mkdir -p build; \
-             cd build; \
-             cmake -G 'Unix Makefiles' "
-             vterm-module-cmake-args
-             " ..; \
-             make; \
-             cd -"))
+             "set -e; \
+             cd '" vterm-directory "'; "
+             (if vterm-compile-module-use-nix
+                 "mkdir -p nix-staging; \
+                  cp -p *.c *.h CMakeLists.txt flake.* nix-staging/; \
+                  nix build --out-link nix-result --print-build-logs --verbose path:nix-staging;
+                  ln -sf $(readlink nix-result)/vterm-module.so vterm-module.so;
+                  rm nix-result;
+                  echo 'vterm-module.so built successfully with Nix';"
+               (concat "mkdir -p build; \
+                cd build; \
+                cmake -G 'Unix Makefiles' "
+                    vterm-module-cmake-args " ..; \
+                make; \
+                cd -;"))))
            (buffer (get-buffer-create vterm-install-buffer-name)))
       (pop-to-buffer buffer)
       (compilation-mode)
