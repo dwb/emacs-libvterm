@@ -110,8 +110,7 @@ the executable."
 (defun vterm-module-compile ()
   "Compile vterm-module."
   (interactive)
-  (when (vterm-module--cmake-is-available)
-    (let* ((vterm-directory
+(let* ((vterm-directory
             (shell-quote-argument
              ;; NOTE: This is a workaround to fix an issue with how the Emacs
              ;; feature/native-comp branch changes the result of
@@ -130,19 +129,21 @@ the executable."
                   ln -sf $(readlink nix-result)/vterm-module.so vterm-module.so;
                   rm nix-result;
                   echo 'vterm-module.so built successfully with Nix';"
-               (concat "mkdir -p build; \
-                cd build; \
-                cmake -G 'Unix Makefiles' "
-                    vterm-module-cmake-args " ..; \
-                make; \
-                cd -;"))))
+               (when (vterm-module--cmake-is-available)
+                 (concat "mkdir -p build; \
+                          cd build; \
+                          cmake -G 'Unix Makefiles' "
+                         vterm-module-cmake-args
+                         "..; \
+                          make; \
+                          cd -;")))))
            (buffer (get-buffer-create vterm-install-buffer-name)))
       (pop-to-buffer buffer)
       (compilation-mode)
       (if (zerop (let ((inhibit-read-only t))
                    (call-process "sh" nil buffer t "-c" make-commands)))
           (message "Compilation of `emacs-libvterm' module succeeded")
-        (error "Compilation of `emacs-libvterm' module failed!")))))
+        (error "Compilation of `emacs-libvterm' module failed!"))))
 
 ;; If the vterm-module is not compiled yet, compile it
 (unless (require 'vterm-module nil t)
